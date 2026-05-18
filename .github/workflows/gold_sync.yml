@@ -1,0 +1,29 @@
+name: Live Gold Price Sync
+
+on:
+  schedule:
+    # ➡️ Runs every hour, Monday through Friday (UTC time tracking)
+    - cron: '0 * * * 1-5'
+  workflow_dispatch: # Allows you to also trigger it manually via GitHub web UI
+
+jobs:
+  update-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python Environment
+        uses: actions/actions-setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Project Dependencies
+        run: |
+          pip install firebase-admin requests
+
+      - name: Execute Sync Script
+        # Pass your Firebase service account credentials securely using GitHub Secrets
+        env:
+          FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: python update_gold.py
