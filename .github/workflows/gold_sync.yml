@@ -2,9 +2,8 @@ name: Live Gold Price Sync
 
 on:
   schedule:
-    # ➡️ Runs every hour, Monday through Friday (UTC time tracking)
     - cron: '0 * * * 1-5'
-  workflow_dispatch: # Allows you to also trigger it manually via GitHub web UI
+  workflow_dispatch:
 
 jobs:
   update-db:
@@ -24,6 +23,5 @@ jobs:
 
       - name: Execute Sync Script
         env:
-          # 🎯 FIX: Changed the left side to match what your update_gold.py looks for!
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: python update_gold.py
