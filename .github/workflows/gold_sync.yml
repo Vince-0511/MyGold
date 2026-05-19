@@ -3,7 +3,7 @@ name: Live Gold Price Sync
 
 on:
   schedule:
-    - cron: '15 9-17 * * 1-5' # Runs at 15 minutes past every hour, 9am to 5pm, Mon-Fri
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
