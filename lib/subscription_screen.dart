@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// ⚠️ Update this with your actual folder path to the service file
+// ⚠️ Ensure this path points exactly to where your subscription_service.dart file lives
 import 'subscription_service.dart';
 
 class SubscriptionScreen extends StatefulWidget {
@@ -10,6 +10,8 @@ class SubscriptionScreen extends StatefulWidget {
 }
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
+  bool _isProcessing = false;
+
   @override
   void initState() {
     super.initState();
@@ -18,13 +20,43 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   void _updateUI() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
     subscriptionService.removeListener(_updateUI);
     super.dispose();
+  }
+
+  /// Wraps service layer triggers with clean visual UI feedback loaders
+  Future<void> _executePurchaseFlow() async {
+    setState(() => _isProcessing = true);
+
+    try {
+      await subscriptionService.buySubscription();
+      if (mounted && subscriptionService.isAdFree) {
+        _showSuccessSnackBar("Welcome to PRO Status!");
+      }
+    } catch (e) {
+      _showErrorSnackBar("Transaction aborted: $e");
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  void _showSuccessSnackBar(String msg) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
+  }
+
+  void _showErrorSnackBar(String err) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(err), backgroundColor: Colors.redAccent),
+    );
   }
 
   @override
@@ -80,7 +112,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ? "Enjoy your complete premium, uninterrupted workspace."
                   : "Track gold rates smoothly without any commercial interruptions.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: const Color(0xFF94A3B8), fontSize: 14),
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
             ),
             const SizedBox(height: 40),
 
@@ -98,7 +130,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             _buildFeatureRow(
               Icons.support_agent,
               "Direct Developer Support",
-              "Get help or suggest custom local platforms straight to the dev branch.",
+              "Get help or suggest custom features straight to the dev branch.",
             ),
 
             const SizedBox(height: 50),
@@ -116,7 +148,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
-                  "\$1.99 USD / month",
+                  "\$1.99 USD / month", // 🎯 Price tier synced
                   style: TextStyle(
                     color: Color(0xFFFBBF24),
                     fontWeight: FontWeight.bold,
@@ -139,13 +171,23 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                     elevation: 4,
                   ),
-                  onPressed: () async {
-                    await subscriptionService.buySubscription();
-                  },
-                  child: const Text(
-                    "Unlock Ad-Free Mode",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  onPressed: _isProcessing ? null : _executePurchaseFlow,
+                  child: _isProcessing
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.black,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Unlock Ad-Free Mode",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ] else ...[
@@ -166,7 +208,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     Icon(Icons.check_circle, color: Color(0xFF10B981)),
                     SizedBox(width: 10),
                     Text(
-                      "Subscription Active via Google Play",
+                      "Subscription Active via Sandbox Engine",
                       style: TextStyle(
                         color: Color(0xFF10B981),
                         fontWeight: FontWeight.bold,
@@ -181,20 +223,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
             // 🔄 Restore Account Purchases Action Link
             TextButton(
-              onPressed: () async {
-                await subscriptionService.updatePastPurchases();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Checking past Google Play purchases..."),
-                    ),
-                  );
-                }
-              },
-              child: Text(
+              onPressed: _isProcessing
+                  ? null
+                  : () async {
+                      await subscriptionService.updatePastPurchases();
+                      _showSuccessSnackBar(
+                        "Checking past sandbox validation tokens...",
+                      );
+                    },
+              child: const Text(
                 "Restore Purchases",
                 style: TextStyle(
-                  color: const Color(0xFF94A3B8),
+                  color: Color(0xFF94A3B8),
                   decoration: TextDecoration.underline,
                 ),
               ),
@@ -228,8 +268,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: TextStyle(
-                    color: const Color(0xFF94A3B8),
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
                     fontSize: 13,
                     height: 1.4,
                   ),

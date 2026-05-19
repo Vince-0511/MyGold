@@ -1,6 +1,6 @@
-package com.example.mygold
+package com.vince.mygold
 
-import com.example.mygold.R 
+import com.vince.mygold.R 
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View

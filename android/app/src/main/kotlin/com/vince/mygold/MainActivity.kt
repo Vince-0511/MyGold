@@ -1,5 +1,5 @@
-package com.example.mygold
-
+package com.vince.mygold
+import com.vince.mygold.ListTileNativeAdFactory
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin

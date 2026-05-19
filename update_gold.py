@@ -1,42 +1,35 @@
 from datetime import datetime
 import os
-import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 import requests
 
 # =========================================================================
-# 1. INITIALIZE CONNECTION TO FIRESTORE (CLOUD & LOCAL COMPATIBLE)
+# 1. INITIALIZE CONNECTION
 # =========================================================================
 try:
-    # Check if we are running inside GitHub Actions environment
-    firebase_creds_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
-
-    if firebase_creds_json:
-        # Cloud Execution: Parse service account credentials directly from GitHub Secrets
-        creds_dict = json.loads(firebase_creds_json)
-        cred = credentials.Certificate(creds_dict)
-        firebase_admin.initialize_app(cred)
-        print("🔒 Firebase initialized via GitHub Secrets.")
-    else:
-        # Local Execution Fallback: Look for the local JSON file on your machine
-        cred = credentials.Certificate("./serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
-        print("💻 Firebase initialized via local serviceAccountKey.json file.")
-
+    # GitHub Actions will create this file in the root directory
+    cred = credentials.Certificate("./serviceAccountKey.json")
+    firebase_admin.initialize_app(cred)
     db = firestore.client()
+    print("✅ Firebase initialized successfully.")
 except Exception as e:
-    print(f"Error initializing Firebase: {e}")
+    print(f"❌ Error initializing Firebase: {e}")
     exit(1)
 
 # =========================================================================
-# CONFIGURATION KEYS
+# 2. CONFIGURATION (FETCHED FROM ENVIRONMENT VARIABLES)
 # =========================================================================
-GOLD_API_KEY = "goldapi-62dcfd30611b04562f7f26b5c5e0940e-io"
-NEWS_API_KEY = "708bda35f02f4bb7aee6155728220b07" # Get free from newsapi.org
+# These will be passed in from your GitHub Action secrets
+GOLD_API_KEY = os.environ.get("GOLD_API_KEY")
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
+
+if not GOLD_API_KEY or not NEWS_API_KEY:
+    print("❌ Error: API Keys not found in environment variables.")
+    exit(1)
 
 # =========================================================================
-# PART A: FETCH & SYNC LIVE GOLD PRICE
+# 3. PART A: FETCH & SYNC LIVE GOLD PRICE
 # =========================================================================
 print("\nContacting GoldAPI servers...")
 try:
@@ -48,45 +41,45 @@ try:
     price_per_gram = float(gold_data.get("price_gram_24k"))
     today_str = datetime.now().strftime("%Y-%m-%d")
     
-    print(f"Live Rate Found: RM {price_per_gram:.2f} /g")
-    
     db.collection("gold_history").document(today_str).set({
         "date": today_str,
         "price_per_gram": price_per_gram
     })
-    print("Success! Gold price node synced.")
+    print(f"Success! Gold price synced: RM {price_per_gram:.2f} /g")
 except Exception as e:
     print(f"Gold Price Sync Failed: {e}")
 
 # =========================================================================
-# PART B: FETCH & SYNC LIVE GOLD NEWS
+# 4. PART B: FETCH & SYNC LIVE GOLD NEWS
 # =========================================================================
-print("\nContacting NewsAPI servers for market headlines...")
+print("\nContacting NewsAPI servers...")
 try:
-    # Enforces that "gold price" or "gold market" MUST be the main topic, filtering out random news
-    news_url = f"https://newsapi.org/v2/everything?q=(%22gold+price%22+OR+%22gold+market%22+OR+%22bullion%22)+AND+finance&language=en&sortBy=relevancy&apiKey={NEWS_API_KEY}"
+    news_url = f"https://newsapi.org/v2/everything?q=(%22gold+price%22+OR+%22gold+market%22)+AND+finance&language=en&sortBy=relevancy&apiKey={NEWS_API_KEY}"
     response = requests.get(news_url)
     response.raise_for_status()
-    articles = response.json().get("articles", [])[:5] # Grab top 5 newest articles
+    articles = response.json().get("articles", [])[:5]
     
     news_collection = db.collection("gold_news")
+    batch = db.batch()
     
-    # Clear out yesterday's news so your list stays fresh
-    old_news = news_collection.stream()
+    # 🎯 FIX: Limit stream to 400 to prevent exceeding Firestore's 500-write batch limit
+    old_news = news_collection.limit(400).stream()
     for doc in old_news:
-        doc.reference.delete()
+        batch.delete(doc.reference)
         
-    # Batch upload the new headlines
     for index, art in enumerate(articles):
-        news_collection.add({
+        new_doc_ref = news_collection.document() 
+        batch.set(new_doc_ref, {
             "title": art.get("title"),
             "description": art.get("description"),
             "source": art.get("source", {}).get("name", "Finance News"),
             "url": art.get("url"),
             "published_at": art.get("publishedAt"),
-            "order": index # Helps sort them in Flutter chronologically
+            "order": index
         })
-    print(f"Success! Uploaded {len(articles)} fresh articles to 'gold_news' collection.")
+        
+    batch.commit()
+    print(f"Success! Atomically synced {len(articles)} articles.")
 
 except Exception as e:
     print(f"Gold News Sync Failed: {e}")

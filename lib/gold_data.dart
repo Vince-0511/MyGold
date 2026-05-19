@@ -403,8 +403,10 @@ class _CompareRatesScreenState extends State<CompareRatesScreen> {
       return;
     }
     _compareNativeAd = NativeAd(
-      adUnitId:
-          'ca-app-pub-3940256099942544/2247696110', // Universal Native Test ID
+      // 🎯 Change this block to check for kReleaseMode instead
+      adUnitId: kReleaseMode
+          ? 'ca-app-pub-8958676039974787/7863548301' // 🚀 Force Production ID in true Release Mode
+          : 'ca-app-pub-3940256099942544/2247696110', // 🛠️ Fall back to Test ID for Debug & Profile Modes
       factoryId: 'listTile',
       request: const AdRequest(),
       listener: NativeAdListener(

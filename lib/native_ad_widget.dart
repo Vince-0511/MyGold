@@ -21,44 +21,53 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
     _loadAd();
   }
 
-  // 🎯 2. YOU ARE MISSING THIS EXACT FUNCTION BLOCK BELOW!
-  // Copy and paste this directly inside the class body:
   void _onSubscriptionChanged() {
+    // If user unlocks premium, immediately wipe out the ad structure cleanly
     if (subscriptionService.isAdFree) {
       if (mounted) {
         setState(() {
           _isAdLoaded = false;
         });
         _nativeAd?.dispose();
+        _nativeAd = null;
       }
     }
   }
 
   void _loadAd() {
+    // 🎯 Edge-Case Security Check: Avoid making requests if user is already pro
     if (subscriptionService.isAdFree) {
-      setState(() {
-        _isAdLoaded = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isAdLoaded = false;
+        });
+      }
       return;
     }
+
     _nativeAd = NativeAd(
-      adUnitId: kDebugMode
-          ? 'ca-app-pub-3940256099942544/2247696110' // Safe Test ID for Emulator
-          : 'ca-app-pub-8958676039974787/7863548301',
+      // 🎯 Change this block to check for kReleaseMode instead
+      adUnitId: kReleaseMode
+          ? 'ca-app-pub-8958676039974787/7863548301' // 🚀 Force Production ID in true Release Mode
+          : 'ca-app-pub-3940256099942544/2247696110', // 🛠️ Fall back to Test ID for Debug & Profile Modes
+      // 🚨 NOTE: Make sure 'listTile' factory is registered in your MainActivity.kt/java!
       factoryId: 'listTile',
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (ad) {
-          setState(() {
-            _isAdLoaded = true;
-          });
+          if (mounted) {
+            setState(() {
+              _isAdLoaded = true;
+            });
+          }
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
-          print('Ad failed to load: $error');
+          print('Ad failed to load safely: $error');
         },
       ),
     );
+
     _nativeAd!.load();
   }
 
@@ -71,19 +80,27 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // 🎯 If user is Pro, explicitly return an empty space regardless of load states
+    if (subscriptionService.isAdFree) {
+      return const SizedBox.shrink();
+    }
+
     if (_isAdLoaded && _nativeAd != null) {
       return Container(
         alignment: Alignment.center,
-        // ➡️ Force a structural layout boundary for the native engine
+        // ➡️ Rigid physical boundary protection to avoid crashing complex Column layouts
         height: 110.0,
+        width: double.infinity,
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
         padding: const EdgeInsets.all(4.0),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(
+            0xFF1E293B,
+          ), // Updated to match your Dashboard's slate theme instead of stark white!
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -92,6 +109,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
         child: AdWidget(ad: _nativeAd!),
       );
     }
+
     return const SizedBox.shrink();
   }
 }

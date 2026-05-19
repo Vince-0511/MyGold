@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:flutter/foundation.dart'; // 🎯 Required for kDebugMode
+import 'package:shared_preferences/shared_preferences.dart'; // 🎯 Persistent local backup
 
 final subscriptionService = SubscriptionService();
 
@@ -9,12 +9,17 @@ class SubscriptionService extends ChangeNotifier {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   late StreamSubscription<List<PurchaseDetails>> _subscription;
 
-  // 🎯 Globally tracks if the user has unlocked the ad-free experience
+  // 🎯 Tracks if the user has unlocked the ad-free experience
   bool _isAdFree = false;
   bool get isAdFree => _isAdFree;
 
   List<ProductDetails> _products = [];
   List<ProductDetails> get products => _products;
+
+  // 🚨 PROFILE MODE FIX CONFIGURATION
+  // Toggle this to TRUE to test the unlock flow smoothly in both Debug AND Profile Mode.
+  // Toggle this to FALSE right before compiling your final deployment App Bundle for Google Play.
+  final bool _isTestingSandbox = false;
 
   // Define your exact Product ID matching Google Play Console
   static const String adFreeProductId = 'remove_ads_subscription';
@@ -36,11 +41,22 @@ class SubscriptionService extends ChangeNotifier {
 
     // Pre-load product info and check past purchases on startup
     loadProducts();
-    updatePastPurchases();
+    _loadLocalBackupStatus(); // Checks SharedPreferences so premium state saves on app close
   }
 
-  // Fetch product price details ($1.99 USD) dynamically from Google Play
+  /// Initial backup check so user stays pro locally during mock iterations
+  Future<void> _loadLocalBackupStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('user_premium_status') == true) {
+      _isAdFree = true;
+      notifyListeners();
+    }
+  }
+
+  // Fetch product price details dynamically from Google Play
   Future<void> loadProducts() async {
+    if (_isTestingSandbox) return; // Skip online stores if simulating sandbox
+
     final bool available = await _inAppPurchase.isAvailable();
     if (!available) return;
 
@@ -52,14 +68,25 @@ class SubscriptionService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Trigger the official Google Play checkout sheet
+  // Trigger the checkout loop engine
   Future<void> buySubscription() async {
-    if (kDebugMode) {
-      print("🛠️ Debug Mode detected: Simulating purchase handshake...");
+    // 🎯 THE FIX: Works flawlessly in both Debug AND Profile mode run environments
+    if (_isTestingSandbox) {
+      print(
+        "⚡ Sandbox Active: Simulating an immediate local payment success...",
+      );
+      await Future.delayed(
+        const Duration(seconds: 2),
+      ); // Artificial loading feel
+
       _isAdFree = true;
-      notifyListeners();
-      return; // Stop execution here so it doesn't hit the empty array block below
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('user_premium_status', true);
+
+      notifyListeners(); // 🚀 Force UI Screen to change states instantly!
+      return;
     }
+
     if (_products.isEmpty) return;
 
     final PurchaseParam purchaseParam = PurchaseParam(
@@ -70,8 +97,11 @@ class SubscriptionService extends ChangeNotifier {
 
   // Check if user already owns the subscription when app launches
   Future<void> updatePastPurchases() async {
-    // Note: In production apps, validating purchase tokens via a backend server
-    // or Firebase Cloud Function is highly recommended to prevent fraud.
+    if (_isTestingSandbox) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      await _loadLocalBackupStatus();
+      return;
+    }
     await _inAppPurchase.restorePurchases();
   }
 
@@ -80,14 +110,15 @@ class SubscriptionService extends ChangeNotifier {
   ) async {
     for (var purchaseDetails in purchaseDetailsList) {
       if (purchaseDetails.status == PurchaseStatus.pending) {
-        // Show a loading indicator in your UI if needed
+        // Handle loading states
       } else if (purchaseDetails.status == PurchaseStatus.error) {
         print("Purchase Error: ${purchaseDetails.error}");
       } else if (purchaseDetails.status == PurchaseStatus.purchased ||
           purchaseDetails.status == PurchaseStatus.restored) {
-        // Check if the verified item matches our ad-free ID string
         if (purchaseDetails.productID == adFreeProductId) {
           _isAdFree = true;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('user_premium_status', true);
           notifyListeners();
         }
 
