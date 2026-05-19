@@ -1,12 +1,29 @@
 from datetime import datetime
+import os
+import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 import requests
 
-# 1. Initialize connection to your Firestore instance
+# =========================================================================
+# 1. INITIALIZE CONNECTION TO FIRESTORE (CLOUD & LOCAL COMPATIBLE)
+# =========================================================================
 try:
-    cred = credentials.Certificate("./serviceAccountKey.json")
-    firebase_admin.initialize_app(cred)
+    # Check if we are running inside GitHub Actions environment
+    firebase_creds_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
+
+    if firebase_creds_json:
+        # Cloud Execution: Parse service account credentials directly from GitHub Secrets
+        creds_dict = json.loads(firebase_creds_json)
+        cred = credentials.Certificate(creds_dict)
+        firebase_admin.initialize_app(cred)
+        print("🔒 Firebase initialized via GitHub Secrets.")
+    else:
+        # Local Execution Fallback: Look for the local JSON file on your machine
+        cred = credentials.Certificate("./serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+        print("💻 Firebase initialized via local serviceAccountKey.json file.")
+
     db = firestore.client()
 except Exception as e:
     print(f"Error initializing Firebase: {e}")
@@ -21,7 +38,7 @@ NEWS_API_KEY = "708bda35f02f4bb7aee6155728220b07" # Get free from newsapi.org
 # =========================================================================
 # PART A: FETCH & SYNC LIVE GOLD PRICE
 # =========================================================================
-print("Contacting GoldAPI servers...")
+print("\nContacting GoldAPI servers...")
 try:
     gold_headers = {"x-access-token": GOLD_API_KEY, "Content-Type": "application/json"}
     response = requests.get("https://www.goldapi.io/api/XAU/MYR", headers=gold_headers)
@@ -54,7 +71,7 @@ try:
     
     news_collection = db.collection("gold_news")
     
-    # Optional: Clear out yesterday's news so your list stays fresh
+    # Clear out yesterday's news so your list stays fresh
     old_news = news_collection.stream()
     for doc in old_news:
         doc.reference.delete()
