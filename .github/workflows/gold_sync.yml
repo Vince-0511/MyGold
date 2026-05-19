@@ -2,8 +2,12 @@ name: Live Gold Price Sync
 
 on:
   schedule:
-    - cron: '0 * * * 1-5'
+    - cron: '15 9-17 * * 1-5' # Runs at 15 minutes past every hour, 9am to 5pm, Mon-Fri
   workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
 
 jobs:
   update-db:
