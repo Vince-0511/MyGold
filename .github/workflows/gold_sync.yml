@@ -1,3 +1,4 @@
+# Force resync: Triggering scheduler index update
 name: Live Gold Price Sync
 
 on:
