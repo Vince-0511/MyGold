@@ -23,7 +23,7 @@ jobs:
           pip install firebase-admin requests
 
       - name: Execute Sync Script
-        # Pass your Firebase service account credentials securely using GitHub Secrets
         env:
-          FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          # 🎯 FIX: Changed the left side to match what your update_gold.py looks for!
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: python update_gold.py
