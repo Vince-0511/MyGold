@@ -8,7 +8,7 @@
         </intent>
     </queries>
     <application
-        android:label="mygold"
+        android:label="MyGold Tracker"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
