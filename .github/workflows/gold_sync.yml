@@ -24,7 +24,9 @@ jobs:
       - name: Create Credentials File
         env:
           CREDS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-        run: printf '%s' "$CREDS" > serviceAccountKey.json
+        run: |
+          printf '%s' "$CREDS" > serviceAccountKey.json
+          python -c "import json,sys; json.load(open('serviceAccountKey.json'))" || { echo "ERROR: FIREBASE_SERVICE_ACCOUNT_JSON secret is missing or not valid JSON"; exit 1; }
 
       - name: Execute Sync Script
         env:
