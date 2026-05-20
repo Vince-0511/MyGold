@@ -3,7 +3,7 @@ name: Live Gold Price Sync
 on:
   push:
   schedule:
-    - cron: '0 0,4,9 * * 1-5'  # Runs at 8am, 12pm, 5pm MYT (UTC+8) on weekdays
+    - cron: '0 0,4,9 * * 1-5'  # 8am, 12pm, 5pm MYT (UTC+8) on weekdays
   workflow_dispatch:
 
 jobs:
@@ -22,11 +22,9 @@ jobs:
         run: pip install firebase-admin requests
 
       - name: Create Credentials File
-        shell: bash
-        run: |
-          cat <<EOF > serviceAccountKey.json
-          ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          EOF
+        env:
+          CREDS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: printf '%s' "$CREDS" > serviceAccountKey.json
 
       - name: Execute Sync Script
         env:

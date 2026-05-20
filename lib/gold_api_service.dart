@@ -16,10 +16,8 @@ class GoldPricePoint {
 class GoldApiService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Fetches cached historical gold prices straight out of Firestore
   Future<List<GoldPricePoint>> fetchCachedHistory() async {
     try {
-      // Pulls the latest 7 sequential entries sorted chronologically
       QuerySnapshot snapshot = await _firestore
           .collection('gold_history')
           .orderBy('date', descending: true)
@@ -31,11 +29,8 @@ class GoldApiService {
       }
 
       List<GoldPricePoint> historicalPoints = [];
-      // Reverse documents so oldest dates sit cleanly on the left side of your chart
-      List<QueryDocumentSnapshot> chronologicalDocs = snapshot.docs
-          .toList()
-          .reversed
-          .toList();
+      List<QueryDocumentSnapshot> chronologicalDocs =
+          snapshot.docs.toList().reversed.toList();
 
       for (int i = 0; i < chronologicalDocs.length; i++) {
         Map<String, dynamic> data =
@@ -43,7 +38,6 @@ class GoldApiService {
         double price = (data['price_per_gram'] as num).toDouble();
         String origDate = data['date'] ?? '';
 
-        // Format string like "2026-05-18" down to a short graph label like "18/05"
         String shortLabel = '';
         if (origDate.length >= 10) {
           shortLabel =
@@ -63,7 +57,7 @@ class GoldApiService {
 
       return historicalPoints;
     } catch (e) {
-      debugPrint("Error fetching cache collection matrix: $e");
+      debugPrint("Error fetching gold history: $e");
       rethrow;
     }
   }

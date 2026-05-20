@@ -9,7 +9,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await MobileAds.instance.initialize();
-  subscriptionService.initialize(); // Start listening to Play Store purchase updates
+  subscriptionService.initialize();
   runApp(const MyGoldApp());
 }
 
@@ -25,7 +25,6 @@ class MyGoldApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),
         useMaterial3: true,
       ),
-      // ➡️ Simply call the main wrapper here. It will handle the tabs!
       home: const MainNavigationScreen(),
     );
   }

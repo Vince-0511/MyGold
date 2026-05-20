@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'subscription_service.dart';
 
 class BannerAdWidget extends StatefulWidget {
@@ -22,12 +22,10 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   }
 
   void _onSubscriptionChanged() {
-    if (subscriptionService.isAdFree) {
-      if (mounted) {
-        setState(() => _isLoaded = false);
-        _bannerAd?.dispose();
-        _bannerAd = null;
-      }
+    if (subscriptionService.isAdFree && mounted) {
+      setState(() => _isLoaded = false);
+      _bannerAd?.dispose();
+      _bannerAd = null;
     }
   }
 
@@ -36,8 +34,8 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
     _bannerAd = BannerAd(
       adUnitId: kReleaseMode
-          ? 'ca-app-pub-8958676039974787/6300978111' // Production banner ID — replace with your real one from AdMob
-          : 'ca-app-pub-3940256099942544/6300978111', // Google test banner ID
+          ? 'ca-app-pub-8958676039974787/6300978111'
+          : 'ca-app-pub-3940256099942544/6300978111',
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// ⚠️ Ensure this path points exactly to where your subscription_service.dart file lives
 import 'subscription_service.dart';
 
 class SubscriptionScreen extends StatefulWidget {
@@ -15,14 +14,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   void initState() {
     super.initState();
-    // Start listening to global subscription changes
     subscriptionService.addListener(_updateUI);
   }
 
   void _updateUI() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
   @override
@@ -31,7 +27,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     super.dispose();
   }
 
-  /// Wraps service layer triggers with clean visual UI feedback loaders
   Future<void> _executePurchaseFlow() async {
     setState(() => _isProcessing = true);
 
@@ -48,9 +43,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   void _showSuccessSnackBar(String msg) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.green),
+    );
   }
 
   void _showErrorSnackBar(String err) {
@@ -64,7 +59,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final isPro = subscriptionService.isAdFree;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Premium Dark Slate Background
+      backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
         title: const Text(
           "MyGold Premium",
@@ -81,7 +76,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           children: [
             const SizedBox(height: 20),
 
-            // 👑 Premium Header Badge
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -92,7 +86,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               child: const Icon(
                 Icons.star_rounded,
                 size: 50,
-                color: Color(0xFFFBBF24), // Gold Accent
+                color: Color(0xFFFBBF24),
               ),
             ),
             const SizedBox(height: 24),
@@ -116,7 +110,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
             const SizedBox(height: 40),
 
-            // ⚡ Feature Value Props Rows
             _buildFeatureRow(
               Icons.block,
               "Completely Remove All Ads",
@@ -135,9 +128,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
             const SizedBox(height: 50),
 
-            // 💰 Dynamic Purchase Layout State
             if (!isPro) ...[
-              // Pricing Tag — shows real price from Google Play
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -160,13 +151,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Main Action Button
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFBBF24), // Gold
+                    backgroundColor: const Color(0xFFFBBF24),
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -193,12 +183,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ),
               ),
             ] else ...[
-              // ✅ Verified success card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFF10B981), width: 1),
                 ),
@@ -221,15 +210,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
             const SizedBox(height: 20),
 
-            // 🔄 Restore Account Purchases Action Link
             TextButton(
               onPressed: _isProcessing
                   ? null
                   : () async {
                       await subscriptionService.updatePastPurchases();
-                      _showSuccessSnackBar(
-                        "Checking for previous purchases...",
-                      );
+                      _showSuccessSnackBar("Checking for previous purchases...");
                     },
               child: const Text(
                 "Restore Purchases",

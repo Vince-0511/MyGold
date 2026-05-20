@@ -32,7 +32,7 @@ class GoldLineChart extends StatelessWidget {
           show: true,
           drawVerticalLine: false,
           getDrawingHorizontalLine: (value) =>
-              FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
+              FlLine(color: Colors.grey.withValues(alpha: 0.15), strokeWidth: 1),
         ),
         titlesData: FlTitlesData(
           show: true,
@@ -97,7 +97,7 @@ class GoldLineChart extends StatelessWidget {
               show: true,
               color: const Color(
                 0xFFFFD700,
-              ).withOpacity(0.12), // Subtle gradient shadow drop
+              ).withValues(alpha: 0.12),
             ),
           ),
         ],

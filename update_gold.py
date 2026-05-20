@@ -1,85 +1,101 @@
 from datetime import datetime
 import os
+import sys
 import firebase_admin
 from firebase_admin import credentials, firestore
 import requests
 
 # =========================================================================
-# 1. INITIALIZE CONNECTION
+# 1. INITIALIZE FIREBASE
 # =========================================================================
 try:
-    # GitHub Actions will create this file in the root directory
     cred = credentials.Certificate("./serviceAccountKey.json")
     firebase_admin.initialize_app(cred)
     db = firestore.client()
-    print("✅ Firebase initialized successfully.")
+    print("Firebase initialized.")
 except Exception as e:
-    print(f"❌ Error initializing Firebase: {e}")
-    exit(1)
+    print(f"Firebase init failed: {e}")
+    sys.exit(1)
 
-# =========================================================================
-# 2. CONFIGURATION (FETCHED FROM ENVIRONMENT VARIABLES)
-# =========================================================================
-# These will be passed in from your GitHub Action secrets
 GOLD_API_KEY = os.environ.get("GOLD_API_KEY")
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 
 if not GOLD_API_KEY or not NEWS_API_KEY:
-    print("❌ Error: API Keys not found in environment variables.")
-    exit(1)
+    print("API keys missing from environment.")
+    sys.exit(1)
+
+failed = False
 
 # =========================================================================
-# 3. PART A: FETCH & SYNC LIVE GOLD PRICE
+# 2. SYNC GOLD PRICE
 # =========================================================================
-print("\nContacting GoldAPI servers...")
+print("\nFetching gold price...")
 try:
-    gold_headers = {"x-access-token": GOLD_API_KEY, "Content-Type": "application/json"}
-    response = requests.get("https://www.goldapi.io/api/XAU/MYR", headers=gold_headers)
+    headers = {"x-access-token": GOLD_API_KEY, "Content-Type": "application/json"}
+    response = requests.get("https://www.goldapi.io/api/XAU/MYR", headers=headers, timeout=15)
     response.raise_for_status()
-    gold_data = response.json()
-    
-    price_per_gram = float(gold_data.get("price_gram_24k"))
+    data = response.json()
+
+    price_per_gram = data.get("price_gram_24k")
+    if price_per_gram is None:
+        raise ValueError("price_gram_24k missing from API response")
+
     today_str = datetime.now().strftime("%Y-%m-%d")
-    
     db.collection("gold_history").document(today_str).set({
         "date": today_str,
-        "price_per_gram": price_per_gram
+        "price_per_gram": float(price_per_gram),
     })
-    print(f"Success! Gold price synced: RM {price_per_gram:.2f} /g")
+    print(f"Gold price synced: RM {float(price_per_gram):.2f}/g for {today_str}")
 except Exception as e:
-    print(f"Gold Price Sync Failed: {e}")
+    print(f"Gold price sync FAILED: {e}")
+    failed = True
 
 # =========================================================================
-# 4. PART B: FETCH & SYNC LIVE GOLD NEWS
+# 3. SYNC GOLD NEWS
 # =========================================================================
-print("\nContacting NewsAPI servers...")
+print("\nFetching gold news...")
 try:
-    news_url = f"https://newsapi.org/v2/everything?q=(%22gold+price%22+OR+%22gold+market%22)+AND+finance&language=en&sortBy=relevancy&apiKey={NEWS_API_KEY}"
-    response = requests.get(news_url)
+    news_url = (
+        "https://newsapi.org/v2/everything"
+        "?q=(%22gold+price%22+OR+%22gold+market%22)+AND+finance"
+        "&language=en"
+        "&sortBy=relevancy"
+        f"&apiKey={NEWS_API_KEY}"
+    )
+    response = requests.get(news_url, timeout=15)
     response.raise_for_status()
     articles = response.json().get("articles", [])[:5]
-    
+
+    if not articles:
+        raise ValueError("No articles returned from NewsAPI")
+
     news_collection = db.collection("gold_news")
     batch = db.batch()
-    
-    # 🎯 FIX: Limit stream to 400 to prevent exceeding Firestore's 500-write batch limit
-    old_news = news_collection.limit(400).stream()
-    for doc in old_news:
+
+    for doc in news_collection.limit(400).stream():
         batch.delete(doc.reference)
-        
+
     for index, art in enumerate(articles):
-        new_doc_ref = news_collection.document() 
-        batch.set(new_doc_ref, {
+        batch.set(news_collection.document(), {
             "title": art.get("title"),
             "description": art.get("description"),
             "source": art.get("source", {}).get("name", "Finance News"),
             "url": art.get("url"),
             "published_at": art.get("publishedAt"),
-            "order": index
+            "order": index,
         })
-        
-    batch.commit()
-    print(f"Success! Atomically synced {len(articles)} articles.")
 
+    batch.commit()
+    print(f"News synced: {len(articles)} articles written.")
 except Exception as e:
-    print(f"Gold News Sync Failed: {e}")
+    print(f"News sync FAILED: {e}")
+    failed = True
+
+# =========================================================================
+# 4. EXIT
+# =========================================================================
+if failed:
+    print("\nOne or more sync steps failed — see errors above.")
+    sys.exit(1)
+
+print("\nAll syncs completed successfully.")

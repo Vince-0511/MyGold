@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'native_ad_widget.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/foundation.dart';
-import 'subscription_service.dart'; // Import your service file
+import 'subscription_service.dart';
 import 'subscription_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -19,7 +19,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
-  double _sharedLivePrice = 0.0; // The state variable holding the live price
+  double _sharedLivePrice = 0.0;
 
   void _updateLivePrice(double price) {
     if (_sharedLivePrice != price) {
@@ -31,12 +31,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ➡️ This list must live HERE inside the build method, NOT as a global variable!
+    // Screens must be built inside build() so they receive the current state values.
     final List<Widget> screens = [
       GoldDashboardScreen(onPriceLoaded: _updateLivePrice),
-      CompareRatesScreen(
-        livePrice: _sharedLivePrice,
-      ), // Passes down the active state
+      CompareRatesScreen(livePrice: _sharedLivePrice),
       SubscriptionScreen(),
     ];
 
@@ -48,7 +46,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         selectedItemColor: const Color(0xFFFFD700),
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_rounded),
@@ -87,7 +84,6 @@ class _GoldDashboardScreenState extends State<GoldDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Start listening to the premium service changes so the news feed updates live
     subscriptionService.addListener(_updateUI);
     _loadCacheData();
   }
@@ -148,9 +144,7 @@ class _GoldDashboardScreenState extends State<GoldDashboardScreen> {
     String formattedDate = DateFormat('dd MMMM yyyy').format(DateTime.now());
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF8FAFC,
-      ), // Ultra-clean subtle background contrast
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
           "MyGold Tracker",
@@ -223,7 +217,7 @@ class _GoldDashboardScreenState extends State<GoldDashboardScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -280,8 +274,7 @@ class _GoldDashboardScreenState extends State<GoldDashboardScreen> {
   }
 
   Widget _buildNewsFeed() {
-    final showAds =
-        !subscriptionService.isAdFree; // Check if user has premium status
+    final showAds = !subscriptionService.isAdFree;
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -314,15 +307,12 @@ class _GoldDashboardScreenState extends State<GoldDashboardScreen> {
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          // 🎯 FIX 2: If premium is active, drop the extra ad item placeholder completely
           itemCount: showAds ? articles.length + 1 : articles.length,
           itemBuilder: (context, index) {
-            // 🎯 FIX 3: Dynamic Ad Handling. Only show ad layout if ad tracking is allowed
             if (showAds && index == 0) {
               return const NativeAdWidget();
             }
 
-            // 🎯 FIX 4: Shift array mapping index ONLY if an ad is actively pushed to slot zero
             int articleIndex = showAds ? index - 1 : index;
             var news = articles[articleIndex].data() as Map<String, dynamic>;
             String articleUrl = news['url'] ?? '';
@@ -333,7 +323,7 @@ class _GoldDashboardScreenState extends State<GoldDashboardScreen> {
               color: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.black.withOpacity(0.03)),
+                side: BorderSide(color: Colors.black.withValues(alpha: 0.03)),
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -354,7 +344,7 @@ class _GoldDashboardScreenState extends State<GoldDashboardScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFD700).withOpacity(0.15),
+                              color: const Color(0xFFFFD700).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -411,7 +401,7 @@ class _GoldDashboardScreenState extends State<GoldDashboardScreen> {
   }
 }
 
-// ==================== COMPARE RATES PANEL MATRIX ====================
+// ==================== COMPARE RATES SCREEN ====================
 class CompareRatesScreen extends StatefulWidget {
   final double livePrice;
 
@@ -428,43 +418,31 @@ class _CompareRatesScreenState extends State<CompareRatesScreen> {
   @override
   void initState() {
     super.initState();
-    // 🎯 Add a listener so the UI instantly hides ads if they purchase premium
     subscriptionService.addListener(_onSubscriptionChanged);
     _loadCompareAd();
   }
 
-  // 🎯 2. YOU ARE MISSING THIS EXACT FUNCTION BLOCK BELOW!
-  // Copy and paste this directly inside the class body:
   void _onSubscriptionChanged() {
-    if (subscriptionService.isAdFree) {
-      if (mounted) {
-        setState(() {
-          _isAdLoaded = false;
-        });
-        _compareNativeAd?.dispose();
-      }
+    if (subscriptionService.isAdFree && mounted) {
+      setState(() => _isAdLoaded = false);
+      _compareNativeAd?.dispose();
     }
   }
 
   void _loadCompareAd() {
     if (subscriptionService.isAdFree) {
-      setState(() {
-        _isAdLoaded = false;
-      });
+      setState(() => _isAdLoaded = false);
       return;
     }
     _compareNativeAd = NativeAd(
-      // 🎯 Change this block to check for kReleaseMode instead
       adUnitId: kReleaseMode
-          ? 'ca-app-pub-8958676039974787/7863548301' // 🚀 Force Production ID in true Release Mode
-          : 'ca-app-pub-3940256099942544/2247696110', // 🛠️ Fall back to Test ID for Debug & Profile Modes
+          ? 'ca-app-pub-8958676039974787/7863548301'
+          : 'ca-app-pub-3940256099942544/2247696110',
       factoryId: 'listTile',
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (ad) {
-          setState(() {
-            _isAdLoaded = true;
-          });
+          setState(() => _isAdLoaded = true);
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
@@ -515,26 +493,26 @@ class _CompareRatesScreenState extends State<CompareRatesScreen> {
       {
         'appName': 'Moomoo MY (GOLDETF)',
         'subText': 'Bursa Malaysia Exchange-Traded Fund (0828EA)',
-        'baseModifier': 1.001, // ETF tightly trails global spot close
-        'buyModifier': 0.997, // Ultra-tight equity broker spread (~0.3%)
+        'baseModifier': 1.001,
+        'buyModifier': 0.997,
         'sellModifier': 1.003,
-        'accentColor': const Color(0xFF14B8A6), // Moomoo corporate teal
+        'accentColor': const Color(0xFF14B8A6),
       },
       {
         'appName': 'Versa Gold',
         'subText': 'AHAM Shariah Gold Tracker Fund (Asset Managed)',
-        'baseModifier': 1.003, // Small fund tracking premium
-        'buyModifier': 0.995, // Direct NAV buy tracking (~0.5%)
+        'baseModifier': 1.003,
+        'buyModifier': 0.995,
         'sellModifier': 1.005,
-        'accentColor': const Color(0xFF6366F1), // Versa deep purple/indigo
+        'accentColor': const Color(0xFF6366F1),
       },
       {
         'appName': 'CGS International (CGSI)',
         'subText': 'Bursa Malaysia Derivatives (Gold Futures Contract)',
-        'baseModifier': 1.005, // Institutional contract value modifier
-        'buyModifier': 0.992, // Derivative contract handling spread (~0.8%)
+        'baseModifier': 1.005,
+        'buyModifier': 0.992,
         'sellModifier': 1.008,
-        'accentColor': const Color(0xFFEF4444), // CGSI corporate red
+        'accentColor': const Color(0xFFEF4444),
       },
     ];
 
@@ -553,7 +531,6 @@ class _CompareRatesScreenState extends State<CompareRatesScreen> {
         padding: const EdgeInsets.all(16),
         itemCount: totalListItemCount,
         itemBuilder: (context, index) {
-          // 🎯 Ad remains dynamically balanced right after the second item card slot
           if (_isAdLoaded && index == 2) {
             return Container(
               margin: const EdgeInsets.only(bottom: 14),
@@ -569,9 +546,8 @@ class _CompareRatesScreenState extends State<CompareRatesScreen> {
             );
           }
 
-          final int adjustedDataIndex = (_isAdLoaded && index > 2)
-              ? index - 1
-              : index;
+          final int adjustedDataIndex =
+              (_isAdLoaded && index > 2) ? index - 1 : index;
           final app = appData[adjustedDataIndex];
 
           double platformBasePrice = spotPrice * app['baseModifier'];
@@ -587,7 +563,7 @@ class _CompareRatesScreenState extends State<CompareRatesScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),

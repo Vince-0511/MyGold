@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'subscription_service.dart';
 
 class NativeAdWidget extends StatefulWidget {
@@ -22,48 +22,32 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
   }
 
   void _onSubscriptionChanged() {
-    // If user unlocks premium, immediately wipe out the ad structure cleanly
-    if (subscriptionService.isAdFree) {
-      if (mounted) {
-        setState(() {
-          _isAdLoaded = false;
-        });
-        _nativeAd?.dispose();
-        _nativeAd = null;
-      }
+    if (subscriptionService.isAdFree && mounted) {
+      setState(() => _isAdLoaded = false);
+      _nativeAd?.dispose();
+      _nativeAd = null;
     }
   }
 
   void _loadAd() {
-    // 🎯 Edge-Case Security Check: Avoid making requests if user is already pro
     if (subscriptionService.isAdFree) {
-      if (mounted) {
-        setState(() {
-          _isAdLoaded = false;
-        });
-      }
+      if (mounted) setState(() => _isAdLoaded = false);
       return;
     }
 
     _nativeAd = NativeAd(
-      // 🎯 Change this block to check for kReleaseMode instead
       adUnitId: kReleaseMode
-          ? 'ca-app-pub-8958676039974787/7863548301' // 🚀 Force Production ID in true Release Mode
-          : 'ca-app-pub-3940256099942544/2247696110', // 🛠️ Fall back to Test ID for Debug & Profile Modes
-      // 🚨 NOTE: Make sure 'listTile' factory is registered in your MainActivity.kt/java!
+          ? 'ca-app-pub-8958676039974787/7863548301'
+          : 'ca-app-pub-3940256099942544/2247696110',
       factoryId: 'listTile',
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (ad) {
-          if (mounted) {
-            setState(() {
-              _isAdLoaded = true;
-            });
-          }
+          if (mounted) setState(() => _isAdLoaded = true);
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
-          debugPrint('Ad failed to load: $error');
+          debugPrint('Native ad failed to load: $error');
         },
       ),
     );
@@ -80,27 +64,21 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // 🎯 If user is Pro, explicitly return an empty space regardless of load states
-    if (subscriptionService.isAdFree) {
-      return const SizedBox.shrink();
-    }
+    if (subscriptionService.isAdFree) return const SizedBox.shrink();
 
     if (_isAdLoaded && _nativeAd != null) {
       return Container(
         alignment: Alignment.center,
-        // ➡️ Rigid physical boundary protection to avoid crashing complex Column layouts
         height: 110.0,
         width: double.infinity,
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
         padding: const EdgeInsets.all(4.0),
         decoration: BoxDecoration(
-          color: const Color(
-            0xFF1E293B,
-          ), // Updated to match your Dashboard's slate theme instead of stark white!
+          color: const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
